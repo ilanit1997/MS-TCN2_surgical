@@ -3,7 +3,7 @@
 import torch
 import numpy as np
 import random
-
+import pandas as pd
 
 class BatchGenerator(object):
     def __init__(self, num_classes, actions_dict, gt_path, features_path, sample_rate):
@@ -30,6 +30,18 @@ class BatchGenerator(object):
         file_ptr.close()
         random.shuffle(self.list_of_examples)
 
+    def convert_file_to_list(self, path):
+        """
+        Explodes concise tool usage file to a list of ground truths for each file (arm) passed to it
+        :param df:
+        :return:
+        """
+        df = pd.read_csv(path, header=None, sep=' ', names=['start', 'end', 'label'])
+        ground_truth = np.zeros(df.iloc[-1, 1]) # last row end time, maximum time
+        for index, row in df.iterrows():
+            ground_truth[row[0]:row[1]] = self.actions_dict[row[2]]
+        return ground_truth
+
     def next_batch(self, batch_size):
         batch = self.list_of_examples[self.index:self.index + batch_size]
         self.index += batch_size
@@ -38,12 +50,13 @@ class BatchGenerator(object):
         batch_target = []
         for vid in batch:
             features = np.load(self.features_path + vid.split('.')[0] + '.npy')
-            file_ptr = open(self.gt_path + vid, 'r')
-            content = file_ptr.read().split('\n')[:-1]
+            # file_ptr = open(self.gt_path + vid[:-4] + ".txt", 'r')
+            # content = file_ptr.read().split('\n')[:-1]
+            content = self.convert_file_to_list(self.gt_path + vid[:-4] + ".txt")
             classes = np.zeros(min(np.shape(features)[1], len(content)))
             for i in range(len(classes)):
-                classes[i] = self.actions_dict[content[i]]
-            batch_input .append(features[:, ::self.sample_rate])
+                classes[i] = content[i]
+            batch_input.append(features[:, ::self.sample_rate])
             batch_target.append(classes[::self.sample_rate])
 
         length_of_sequences = list(map(len, batch_target))
