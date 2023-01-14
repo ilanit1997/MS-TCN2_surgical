@@ -30,18 +30,6 @@ class BatchGenerator(object):
         file_ptr.close()
         random.shuffle(self.list_of_examples)
 
-    def convert_file_to_list(self, path):
-        """
-        Explodes concise tool usage file to a list of ground truths for each file (arm) passed to it
-        :param df:
-        :return:
-        """
-        df = pd.read_csv(path, header=None, sep=' ', names=['start', 'end', 'label'])
-        ground_truth = np.zeros(df.iloc[-1, 1]) # last row end time, maximum time
-        for index, row in df.iterrows():
-            ground_truth[row[0]:row[1]] = self.actions_dict[row[2]]
-        return ground_truth
-
     def next_batch(self, batch_size):
         batch = self.list_of_examples[self.index:self.index + batch_size]
         self.index += batch_size
@@ -52,7 +40,7 @@ class BatchGenerator(object):
             features = np.load(self.features_path + vid.split('.')[0] + '.npy')
             # file_ptr = open(self.gt_path + vid[:-4] + ".txt", 'r')
             # content = file_ptr.read().split('\n')[:-1]
-            content = self.convert_file_to_list(self.gt_path + vid[:-4] + ".txt")
+            content = convert_file_to_list(self.gt_path + vid[:-4] + ".txt", self.actions_dict)
             classes = np.zeros(min(np.shape(features)[1], len(content)))
             for i in range(len(classes)):
                 classes[i] = content[i]
@@ -69,3 +57,22 @@ class BatchGenerator(object):
             mask[i, :, :np.shape(batch_target[i])[0]] = torch.ones(self.num_classes, np.shape(batch_target[i])[0])
 
         return batch_input_tensor, batch_target_tensor, mask
+
+def convert_file_to_list(path, mapping_dict=None):
+    """
+    Explodes concise tool usage file to a list of ground truths for each file (arm) passed to it
+    :param df:
+    :return:
+    """
+    df = pd.read_csv(path, header=None, sep=' ', names=['start', 'end', 'label'])
+
+    if mapping_dict == None:
+        ground_truth = list()
+        for index, row in df.iterrows():
+            ground_truth.extend([str(row[2])] * (row[1] - row[0]))
+
+    else:
+        ground_truth = np.zeros(df.iloc[-1, 1])  # last row end time, maximum time
+        for index, row in df.iterrows():
+            ground_truth[row[0]:row[1]] = mapping_dict[row[2]]
+    return ground_truth

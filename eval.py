@@ -3,6 +3,7 @@
 
 import numpy as np
 import argparse
+from batch_gen import convert_file_to_list
 
 
 def read_file(path):
@@ -98,9 +99,9 @@ def main():
 
     args = parser.parse_args()
 
-    ground_truth_path = "./data/"+args.dataset+"/groundTruth/"
-    recog_path = "./results/"+args.dataset+"/split_"+args.split+"/"
-    file_list = "./data/"+args.dataset+"/splits/test.split"+args.split+".bundle"
+    ground_truth_path = '/datashare/APAS/transcriptions_gestures/'
+    recog_path = "./results/test/"
+    file_list = "/datashare/APAS/folds/test 0.txt"
 
     list_of_videos = read_file(file_list).split('\n')[:-1]
 
@@ -112,13 +113,18 @@ def main():
     edit = 0
 
     for vid in list_of_videos:
-        gt_file = ground_truth_path + vid
-        gt_content = read_file(gt_file).split('\n')[0:-1]
+        gt_file = ground_truth_path + vid[:-4] + ".txt"
 
+        # gt_content = read_file(gt_file).split('\n')[0:-1]
+        gt_content = convert_file_to_list(gt_file)
         recog_file = recog_path + vid.split('.')[0]
         recog_content = read_file(recog_file).split('\n')[1].split()
 
-        for i in range(len(gt_content)):
+        print(len(gt_content))
+        print(gt_content[:5])
+        print(len(recog_content))
+        print(recog_content[:5])
+        for i in range(min(len(gt_content), len(recog_content))):
             total += 1
             if gt_content[i] == recog_content[i]:
                 correct += 1
@@ -135,6 +141,8 @@ def main():
     print('Edit: %.4f' % ((1.0*edit)/len(list_of_videos)))
     acc = (100*float(correct)/total)
     edit = ((1.0*edit)/len(list_of_videos))
+    # Logger.current_logger().report_scalar(title="test_edit", series="edit_distance", iteration=(epoch + 1), value=loss)
+    # Logger.current_logger().report_scalar(title="train_acc", series="accuracy", iteration=(epoch + 1), value=accuracy)
     for s in range(len(overlap)):
         precision = tp[s] / float(tp[s]+fp[s])
         recall = tp[s] / float(tp[s]+fn[s])
