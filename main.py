@@ -23,7 +23,7 @@ torch.cuda.manual_seed_all(seed)
 torch.backends.cudnn.deterministic = True
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--action', default='train')
+parser.add_argument('--action', default='trainAndInfer')
 parser.add_argument('--dataset', default="gtea")
 parser.add_argument('--split', default='1')
 
