@@ -3,6 +3,8 @@
 
 import numpy as np
 import argparse
+from batch_gen import convert_file_to_list
+# from clearml import Task, Logger
 
 
 def read_file(path):
@@ -36,7 +38,7 @@ def get_labels_start_end_time(frame_wise_labels, bg_class=["background"]):
 def levenstein(p, y, norm=False):
     m_row = len(p)
     n_col = len(y)
-    D = np.zeros([m_row+1, n_col+1], np.float)
+    D = np.zeros([m_row+1, n_col+1], np.float64)
     for i in range(m_row+1):
         D[i, 0] = i
     for i in range(n_col+1):
@@ -90,59 +92,190 @@ def f_score(recognized, ground_truth, overlap, bg_class=["background"]):
     return float(tp), float(fp), float(fn)
 
 
+
+def eval(dataset, folds, test_files, weight_type):
+    print('#####################')
+    print('Starting evaluation')
+    evaluation_metrics = dict()
+    evaluation_metrics['acc'] = list()
+    evaluation_metrics['edit'] = list()
+    overlap = [.1, .25, .5]
+    for s in overlap:
+        evaluation_metrics[f"F1@{s}"] = list()
+
+    ClearMLlogger = Logger.current_logger()
+
+    for fold in folds:
+        print(f'Fold {fold}')
+        ground_truth_path = '/datashare/APAS/transcriptions_gestures/'
+        recog_path = f"./results/test/{dataset}fold{fold}/" + weight_type
+        list_of_videos = test_files[int(fold)]
+
+        tp, fp, fn = np.zeros(3), np.zeros(3), np.zeros(3)
+
+        correct = 0
+        total = 0
+        edit = 0
+
+        for vid in list_of_videos:
+            gt_file = ground_truth_path + vid[:-4] + ".txt"
+
+            # gt_content = read_file(gt_file).split('\n')[0:-1]
+            gt_content = convert_file_to_list(gt_file)
+            recog_file = recog_path + vid.split('.')[0]
+            recog_content = read_file(recog_file).split('\n')[1].split()
+
+            # print(len(gt_content))
+            # print(gt_content[:5])
+            # print(len(recog_content))
+            # print(recog_content[:5])
+            for i in range(min(len(gt_content), len(recog_content))):
+                total += 1
+                if gt_content[i] == recog_content[i]:
+                    correct += 1
+
+            edit += edit_score(recog_content, gt_content)
+
+            for s in range(len(overlap)):
+                tp1, fp1, fn1 = f_score(recog_content, gt_content, overlap[s])
+                tp[s] += tp1
+                fp[s] += fp1
+                fn[s] += fn1
+        acc = (100 * float(correct) / total)
+        edit = ((1.0 * edit) / len(list_of_videos))
+
+        print("Acc: %.4f" % (acc))
+        evaluation_metrics['acc'].append(acc)
+        ClearMLlogger.report_scalar(title="AccuracyPerFold", iteration=0, series=f"fold{fold}", value=acc)
+
+        print('Edit: %.4f' % (edit))
+        evaluation_metrics['edit'].append(edit)
+        ClearMLlogger.report_scalar(title="EditPerFold", iteration=0, series=f"fold{fold}", value=edit)
+
+        for s in range(len(overlap)):
+            precision = tp[s] / float(tp[s] + fp[s])
+            recall = tp[s] / float(tp[s] + fn[s])
+
+            f1 = 2.0 * (precision * recall) / (precision + recall)
+
+            f1 = np.nan_to_num(f1) * 100
+
+            print('F1@%0.2f: %.4f' % (overlap[s], f1))
+            evaluation_metrics[f'F1@{overlap[s]}'].append(f1)
+            ClearMLlogger.report_scalar(title=f"F1@{overlap[s]}PerFold", iteration=0, series=f"fold{fold}", value=f1)
+
+        print()
+
+    avg_acc_folds = sum(evaluation_metrics['acc']) / len(evaluation_metrics['acc'])
+    ClearMLlogger.report_scalar(title="AverageFolds", series="Accuracy", iteration=0, value=avg_acc_folds)
+    print("Average acccuracy on folds: %.4f" % (avg_acc_folds))
+
+    avg_edit_folds = sum(evaluation_metrics['edit']) / len(evaluation_metrics['edit'])
+    ClearMLlogger.report_scalar(title="AverageFolds", series="Edit", iteration=0, value=avg_edit_folds)
+    print('Average edit distance on folds: %.4f' % avg_edit_folds)
+
+    for s in range(len(overlap)):
+        avg_f1_folds = sum(evaluation_metrics[f"F1@{overlap[s]}"]) / len(evaluation_metrics[f"F1@{overlap[s]}"])
+        ClearMLlogger.report_scalar(title="AverageFolds", series=f"F1@{overlap[s]}",iteration=0,  value=avg_f1_folds)
+        print('Average F1@%0.2f on folds: %.4f' % (overlap[s], avg_f1_folds))
+
+
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--dataset', default="gtea")
-    parser.add_argument('--split', default='1')
+    parser.add_argument('--dataset', default="valid")
+    parser.add_argument('--fold', default='1')
+    parser.add_argument('--weight_type', type=str)
 
     args = parser.parse_args()
+    dataset = args.dataset
+    folds = args.fold.split(",")
+    weight_type = args.weight_type
 
-    ground_truth_path = "./data/"+args.dataset+"/groundTruth/"
-    recog_path = "./results/"+args.dataset+"/split_"+args.split+"/"
-    file_list = "./data/"+args.dataset+"/splits/test.split"+args.split+".bundle"
-
-    list_of_videos = read_file(file_list).split('\n')[:-1]
-
+    evaluation_metrics = dict()
+    evaluation_metrics['acc'] = list()
+    evaluation_metrics['edit'] = list()
     overlap = [.1, .25, .5]
-    tp, fp, fn = np.zeros(3), np.zeros(3), np.zeros(3)
+    for s in overlap:
+        evaluation_metrics[f"F1@{s}"] = list()
 
-    correct = 0
-    total = 0
-    edit = 0
+    ClearMLlogger = Logger.current_logger()
 
-    for vid in list_of_videos:
-        gt_file = ground_truth_path + vid
-        gt_content = read_file(gt_file).split('\n')[0:-1]
+    for fold in folds:
+        print(f'Fold {fold}')
+        ground_truth_path = '/datashare/APAS/transcriptions_gestures/'
+        recog_path = f"./results/test/{dataset}{fold}/" + weight_type
+        file_list = f"/datashare/APAS/folds/{dataset} {fold}.txt"
 
-        recog_file = recog_path + vid.split('.')[0]
-        recog_content = read_file(recog_file).split('\n')[1].split()
+        list_of_videos = read_file(file_list).split('\n')[:-1]
 
-        for i in range(len(gt_content)):
-            total += 1
-            if gt_content[i] == recog_content[i]:
-                correct += 1
+        tp, fp, fn = np.zeros(3), np.zeros(3), np.zeros(3)
 
-        edit += edit_score(recog_content, gt_content)
+        correct = 0
+        total = 0
+        edit = 0
+
+        for vid in list_of_videos:
+            gt_file = ground_truth_path + vid[:-4] + ".txt"
+
+            # gt_content = read_file(gt_file).split('\n')[0:-1]
+            gt_content = convert_file_to_list(gt_file)
+            recog_file = recog_path + vid.split('.')[0]
+            recog_content = read_file(recog_file).split('\n')[1].split()
+
+            # print(len(gt_content))
+            # print(gt_content[:5])
+            # print(len(recog_content))
+            # print(recog_content[:5])
+            for i in range(min(len(gt_content), len(recog_content))):
+                total += 1
+                if gt_content[i] == recog_content[i]:
+                    correct += 1
+
+            edit += edit_score(recog_content, gt_content)
+
+            for s in range(len(overlap)):
+                tp1, fp1, fn1 = f_score(recog_content, gt_content, overlap[s])
+                tp[s] += tp1
+                fp[s] += fp1
+                fn[s] += fn1
+        acc = (100 * float(correct) / total)
+        edit = ((1.0 * edit) / len(list_of_videos))
+
+        print("Acc: %.4f" % (acc))
+        evaluation_metrics['acc'].append(acc)
+        ClearMLlogger.report_scalar(title="Accuracy", series=f"fold{fold}", iteration=0, value=acc)
+
+        print('Edit: %.4f' % (edit))
+        evaluation_metrics['edit'].append(edit)
+        ClearMLlogger.report_scalar(title="Edit", series=f"fold{fold}", iteration=0,value=edit)
 
         for s in range(len(overlap)):
-            tp1, fp1, fn1 = f_score(recog_content, gt_content, overlap[s])
-            tp[s] += tp1
-            fp[s] += fp1
-            fn[s] += fn1
+            precision = tp[s] / float(tp[s]+fp[s])
+            recall = tp[s] / float(tp[s]+fn[s])
 
-    print("Acc: %.4f" % (100*float(correct)/total))
-    print('Edit: %.4f' % ((1.0*edit)/len(list_of_videos)))
-    acc = (100*float(correct)/total)
-    edit = ((1.0*edit)/len(list_of_videos))
+            f1 = 2.0 * (precision*recall) / (precision+recall)
+
+            f1 = np.nan_to_num(f1)*100
+
+            print('F1@%0.2f: %.4f' % (overlap[s], f1))
+            evaluation_metrics[f'F1@{overlap[s]}'].append(f1)
+            ClearMLlogger.report_scalar(title=f"F1@{overlap[s]}", series=f"fold{fold}", iteration=0,value=f1)
+
+        print()
+
+    avg_acc_folds = sum(evaluation_metrics['acc'])/len(evaluation_metrics['acc'])
+    ClearMLlogger.report_scalar(title=f"AvgAccuracy", series=f"all_folds",iteration=0, value=avg_acc_folds)
+    print("Average acccuracy on folds: %.4f" % (avg_acc_folds))
+
+    avg_edit_folds = sum(evaluation_metrics['edit'])/len(evaluation_metrics['edit'])
+    ClearMLlogger.report_scalar(title=f"AvgEdit", series=f"all_folds",iteration=0, value=avg_edit_folds)
+    print('Average edit distance on folds: %.4f' % avg_edit_folds)
+
     for s in range(len(overlap)):
-        precision = tp[s] / float(tp[s]+fp[s])
-        recall = tp[s] / float(tp[s]+fn[s])
+        avg_f1_folds = sum(evaluation_metrics[f"F1@{overlap[s]}"])/len(evaluation_metrics[f"F1@{overlap[s]}"])
+        ClearMLlogger.report_scalar(title=f"AvgF1@{overlap[s]}", series=f"all_folds",iteration=0, value=avg_f1_folds)
+        print('Average F1@%0.2f on folds: %.4f' % (overlap[s], avg_f1_folds))
 
-        f1 = 2.0 * (precision*recall) / (precision+recall)
-
-        f1 = np.nan_to_num(f1)*100
-        print('F1@%0.2f: %.4f' % (overlap[s], f1))
-
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()
