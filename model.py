@@ -215,8 +215,8 @@ class Trainer:
         self.num_classes = num_classes
         self.fold = fold
 
-        logger.add('logs/' + dataset + "_" + split + "_{time}.log")
-        logger.add(sys.stdout, colorize=True, format="{message}")
+        # logger.add('logs/' + dataset + "_" + split + "_{time}.log")
+        # logger.add(sys.stdout, colorize=True, format="{message}")
 
     def _train(self, batch_gen, epoch, best_acc, name='train'):
         batch_i_size = 5
@@ -294,7 +294,7 @@ class Trainer:
             print(f'Best accuracy on validation: {best_acc} from epoch {self.best_acc_epoch}')
 
     def predict(self, model_dir, results_dir, features_path, vid_list_files, epoch, actions_dict, device, sample_rate,
-                weighting_method='', final_predict_mode=True, final_predict_epoch=15):
+                weighting_method='', final_predict_mode=False, final_predict_epoch=15):
         self.model.eval()
         with torch.no_grad():
             self.model.to(device)
