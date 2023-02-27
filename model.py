@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+# !/usr/bin/python2.7
 
 import sys
 import torch
@@ -9,7 +9,6 @@ import copy
 import numpy as np
 from loguru import logger
 from clearml import Task, Logger
-from dc1d.nn import DeformConv1d
 
 
 class MS_TCN2(nn.Module):
@@ -215,8 +214,8 @@ class Trainer:
         self.num_classes = num_classes
         self.fold = fold
 
-        # logger.add('logs/' + dataset + "_" + split + "_{time}.log")
-        # logger.add(sys.stdout, colorize=True, format="{message}")
+        logger.add('logs/' + dataset + "_" + split + "_{time}.log")
+        logger.add(sys.stdout, colorize=True, format="{message}")
 
     def _train(self, batch_gen, epoch, best_acc, name='train'):
         batch_i_size = 5
@@ -294,16 +293,12 @@ class Trainer:
             print(f'Best accuracy on validation: {best_acc} from epoch {self.best_acc_epoch}')
 
     def predict(self, model_dir, results_dir, features_path, vid_list_files, epoch, actions_dict, device, sample_rate,
-                weighting_method='', final_predict_mode=False, final_predict_epoch=15):
+                weighting_method='', final_predict_mode=True, final_predict_epoch=15):
         self.model.eval()
         with torch.no_grad():
             self.model.to(device)
-            if final_predict_mode:
-                self.model.load_state_dict(
-                    torch.load(model_dir + "/epoch-" + str(final_predict_epoch) + "_" + weighting_method + ".model"))
-            else:
-                self.model.load_state_dict(
-                    torch.load(model_dir + "/epoch-" + str(self.best_acc_epoch) + "_" + weighting_method + ".model"))
+            self.model.load_state_dict(
+                torch.load(model_dir + "/epoch-" + str(self.best_acc_epoch) + "_" + weighting_method + ".model"))
             print('#####################')
             print("Predicting")
             list_of_vids = vid_list_files
@@ -328,3 +323,34 @@ class Trainer:
                 f_ptr.write(' '.join(recognition))
                 f_ptr.close()
 
+    def final_predict(self, model_dir, results_dir, features_path, vid_list_files, epoch, actions_dict, device, sample_rate,
+                weighting_method=''):
+        self.model.eval()
+        with torch.no_grad():
+            self.model.to(device)
+            self.model.load_state_dict(
+                torch.load(model_dir + "/epoch-" + str(epoch) + "_" + weighting_method + ".model", map_location=torch.device('cpu')))
+            print('#####################')
+            print("Predicting")
+            list_of_vids = vid_list_files
+            for vid in list_of_vids:
+                # print vid
+                features = np.load(features_path + vid)
+                features = features[:, ::sample_rate]
+                input_x = torch.tensor(features, dtype=torch.float)
+                input_x.unsqueeze_(0)
+                input_x = input_x.to(device)
+                predictions = self.model(input_x)
+                _, predicted = torch.max(predictions[-1].data, 1)
+                predicted = predicted.squeeze()
+                recognition = []
+                for i in range(len(predicted)):
+                    recognition = np.concatenate((recognition, [list(actions_dict.keys())[
+                                                                    list(actions_dict.values()).index(
+                                                                        predicted[i].item())]] * sample_rate))
+                f_name = vid.split('/')[-1].split('.')[0]
+                print(results_dir + "/final_predict_" + weighting_method + f_name)
+                f_ptr = open(results_dir + "/final_predict_" + weighting_method + "_" + f_name + ".txt" , "w")
+                f_ptr.write("### Frame level recognition: ###\n")
+                f_ptr.write(' '.join(recognition))
+                f_ptr.close()
