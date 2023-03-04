@@ -9,7 +9,6 @@ import copy
 import numpy as np
 from loguru import logger
 from clearml import Task, Logger
-from dc1d.nn import DeformConv1d
 
 
 class MS_TCN2(nn.Module):
@@ -31,15 +30,10 @@ class MS_TCN2(nn.Module):
 
     def forward(self, x):
         out = self.PG(x)
-        # print("output size of prediction generator {}".format(out.shape))
         outputs = out.unsqueeze(0)
-        # print("output size after unsqueeze {}".format(outputs.shape))
         for R in self.Rs:
             out = R(F.softmax(out, dim=1))
-            # print("output size after refinement {}".format(out.shape))
             outputs = torch.cat((outputs, out.unsqueeze(0)), dim=0)
-            # print("output size after concat {}".format(outputs.shape))
-        # print()
         return outputs
 
 
@@ -96,12 +90,9 @@ class Refinement(nn.Module):
 
     def forward(self, x):
         out = self.conv_1x1(x)
-        # print("within refinement: after 1d conv {}".format(out.shape))
         for layer in self.layers:
             out = layer(out)
-            # print("within refinement: after layer {}".format(out.shape))
         out = self.conv_out(out)
-        # print("within refinement: after conv_out {}".format(out.shape))
         return out
 
 
@@ -116,22 +107,16 @@ class TradeoffRefinement(nn.Module):
 
     def forward(self, x):
         out = self.conv_1x1(x)
-        # print("within refinement: after 1d conv {}".format(out.shape))
         dilation_output_list = list()
         for layer in self.layers:
             out = layer(out)
             dilation_output_list.append(out)
-            # print("within refinement: after layer {}".format(out.shape))
 
         # concat list into a vector
         dilation_outputs = torch.stack(dilation_output_list)
-        # print("within refinement: stacking {}".format(dilation_outputs.shape))
-        # print("dilation dtype {}".format(dilation_outputs.dtype))
-        # print("weight dtype {}".format(self.w.dtype))
+
         averaged_outputs = self.weighter(dilation_outputs)
-        # print("within refinement: averaged {}".format(averaged_outputs.shape))
         out = self.conv_out(averaged_outputs)
-        # print("within refinement: after conv_out {}".format(out.shape))
         return out
 
 
@@ -159,19 +144,6 @@ class Weighting(nn.Module):
         return torch.einsum("ijkl, i->jkl", x, self.w)
 
 
-# class MS_TCN(nn.Module):
-#     def __init__(self, num_stages, num_layers, num_f_maps, dim, num_classes):
-#         super(MS_TCN, self).__init__()
-#         self.stage1 = SS_TCN(num_layers, num_f_maps, dim, num_classes)
-#         self.stages = nn.ModuleList([copy.deepcopy(SS_TCN(num_layers, num_f_maps, num_classes, num_classes)) for s in range(num_stages-1)])
-#
-#     def forward(self, x, mask):
-#         out = self.stage1(x, mask)
-#         outputs = out.unsqueeze(0)
-#         for s in self.stages:
-#             out = s(F.softmax(out, dim=1) * mask[:, 0:1, :], mask)
-#             outputs = torch.cat((outputs, out.unsqueeze(0)), dim=0)
-#         return outputs
 
 
 class SS_TCN(nn.Module):
@@ -298,10 +270,6 @@ class Trainer:
         self.model.eval()
         with torch.no_grad():
             self.model.to(device)
-            # if final_predict_mode:
-            #     self.model.load_state_dict(
-            #         torch.load(model_dir + "/epoch-" + str(final_predict_epoch) + "_" + weighting_method + ".model"))
-            # else:
             self.model.load_state_dict(
                 torch.load(model_dir + "/epoch-" + str(self.best_acc_epoch) + "_" + weighting_method + ".model"))
             print('#####################')

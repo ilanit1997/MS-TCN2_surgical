@@ -28,13 +28,6 @@ class BatchGenerator(object):
         self.list_of_examples = vid_list_file
         random.shuffle(self.list_of_examples)
 
-        # # get longest series for padding
-        # len_list = list()
-        # for vid in self.list_of_examples:
-        #     len_list.append(len(convert_file_to_list(self.gt_path + vid[:-4] + ".txt", self.actions_dict)[::self.sample_rate]))
-        # self.max_series_length = max(len_list)
-        # return self.max_series_length
-
 
     def next_batch(self, batch_size):
         batch = self.list_of_examples[self.index:self.index + batch_size]
@@ -84,14 +77,7 @@ def convert_file_to_list(path, mapping_dict=None):
 
     else:
         ground_truth = np.zeros(df.iloc[-1, 1])  # last row end time, maximum time
-        # print(df)
-        # print("mapping_dict")
-        # print(mapping_dict)
+
         for index, row in df.iterrows():
-            # print(row[0])
-            # print(row[1])
-            # print(row[2])
-            # print(mapping_dict[row[2]])
             ground_truth[row[0]:row[1]+1] = mapping_dict[row[2]]
-            # print(ground_truth[row[1]-5:row[1]])
     return ground_truth
