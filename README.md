@@ -13,6 +13,12 @@ Python3, pytorch
 ## Evaluation
 Run sh test_epoch.sh ${dataset} ${split} ${test_epoch}.
 
+## Difference from original model:
+* We added additive attention to model.py using einstein summation
+* Combine train, val, predict and eval into one module named - train_predict_eval.py
+* The different experiments can be seen in - train_predict_eval.sh
+* Adding logs to ClearML
+* train-test-val split is unique to our dataset 
 
 ## Cite:
 ```BibTeX
