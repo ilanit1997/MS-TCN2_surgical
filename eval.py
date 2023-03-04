@@ -284,5 +284,4 @@ def main():
         ClearMLlogger.report_scalar(title=f"AvgF1@{overlap[s]}", series=f"all_folds",iteration=0, value=avg_f1_folds)
         print('Average F1@%0.2f on folds: %.4f' % (overlap[s], avg_f1_folds))
 
-# if __name__ == '__main__':
-#     main()
+

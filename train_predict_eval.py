@@ -1,5 +1,3 @@
-#!/usr/bin/python2.7
-
 import torch
 from model import Trainer
 from batch_gen import BatchGenerator
@@ -9,8 +7,7 @@ import argparse
 import random
 from clearml import Task
 from eval import eval
-from os.path import isfile, join
-from os import listdir
+
 
 
 task = Task.init(project_name='ProjectCV', task_name='TrainPredictEval', reuse_last_task_id=False)
@@ -65,6 +62,7 @@ weight_type = args.weight_type
 experimental = args.experimental
 learn_from_domain = False
 
+w = None
 if weight_type == "framewise": # give more weight to lower resolution dilations
     w = torch.tensor(np.array(range(num_layers_R, 0, -1)) / sum(range(num_layers_R, 0, -1)), dtype=torch.float32, device=device)
 elif weight_type == "smooth": # give more weight to higher resolution dilations
@@ -98,6 +96,13 @@ elif weight_type == "learned_smooth_exp": # weight equally all dilations
     w = torch.tensor(arr_exps, dtype=torch.float32, device=device)
     learn_from_domain = True
 
+elif weight_type == "learned_poly": # weight polynomial at center
+    arr = np.arange(0, 1, step=0.1)
+    arr_exps = (arr - 0.45) ** 2 + 0.5
+    arr_exps = arr_exps / sum(arr_exps)
+    w = torch.tensor(arr_exps, dtype=torch.float32, device=device)
+    learn_from_domain = True
+
 
 
 
@@ -121,24 +126,38 @@ fold_files = [(f"/datashare/APAS/folds/valid {i}.txt",
                f"/datashare/APAS/folds/test {i}.txt",
                f"/datashare/APAS/features/fold{i}/") for i in folds]
 
-def fold_split(features_path, val_path, test_path):
+def fold_split(features_path, val_path, test_path, foldi):
     with open(val_path, 'r') as f:
         val_files = [vid.split('.')[0] + '.npy' for vid in f.readlines()]
     with open(test_path, 'r') as f:
         test_files = [vid.split('.')[0] + '.npy' for vid in f.readlines()]
-    train_files = [f for f in listdir(features_path) if isfile(join(features_path, f))]
-    train_files = list(set(train_files) - set(test_files + val_files))
+
+    other_test_files = []
+    for i in range(5):
+        if i!= foldi:
+            curr_path = f"/datashare/APAS/folds/test {i}.txt"
+            with open(curr_path, 'r') as f:
+                curr_files = [vid.split('.')[0] + '.npy' for vid in f.readlines()]
+                other_test_files.extend(curr_files)
+    train_files = list(set(other_test_files) - set(test_files + val_files))
+    print('train files:')
+    print(train_files)
+    print('val files:')
+    print(val_files)
+    print('test files:')
+    print(test_files)
     return train_files, val_files, test_files
 
 
 test_files = []
-
+i = 0
 for val_path_fold, test_path_fold, features_path_fold in fold_files:
-    vid_list_file, vid_list_file_val, vid_list_file_test = fold_split(features_path_fold, val_path_fold,
-                                                                      test_path_fold)
-    fold = features_path_fold.split("/")[-2]
-    print(f"{dataset}  : {fold}")
+    print(f"{dataset}  : {i}")
 
+    vid_list_file, vid_list_file_val, vid_list_file_test = fold_split(features_path_fold, val_path_fold,
+                                                                      test_path_fold, foldi=i)
+    fold = features_path_fold.split("/")[-2]
+    i+=1
     model_dir = f"./models/test/{dataset}{fold}"
     results_dir = f"./results/test/{dataset}{fold}"
 

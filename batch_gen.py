@@ -73,7 +73,7 @@ def convert_file_to_list(path, mapping_dict=None):
     """
     Explodes concise tool usage file to a list of ground truths for each file (arm) passed to it
     :param df:
-    :return: list
+    :return:
     """
     df = pd.read_csv(path, header=None, sep=' ', names=['start', 'end', 'label'])
 
