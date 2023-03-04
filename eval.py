@@ -4,7 +4,7 @@
 import numpy as np
 import argparse
 from batch_gen import convert_file_to_list
-# from clearml import Task, Logger
+from clearml import Task, Logger
 
 
 def read_file(path):
@@ -93,7 +93,7 @@ def f_score(recognized, ground_truth, overlap, bg_class=["background"]):
 
 
 
-def eval(dataset, folds, test_files, weight_type):
+def eval(dataset, folds, test_files, weight_type, final_eval=0):
     print('#####################')
     print('Starting evaluation')
     evaluation_metrics = dict()
@@ -174,10 +174,17 @@ def eval(dataset, folds, test_files, weight_type):
     ClearMLlogger.report_scalar(title="AverageFolds", series="Edit", iteration=0, value=avg_edit_folds)
     print('Average edit distance on folds: %.4f' % avg_edit_folds)
 
+    avg_f1_list = list()
     for s in range(len(overlap)):
         avg_f1_folds = sum(evaluation_metrics[f"F1@{overlap[s]}"]) / len(evaluation_metrics[f"F1@{overlap[s]}"])
+        avg_f1_list.append(avg_f1_folds)
         ClearMLlogger.report_scalar(title="AverageFolds", series=f"F1@{overlap[s]}",iteration=0,  value=avg_f1_folds)
         print('Average F1@%0.2f on folds: %.4f' % (overlap[s], avg_f1_folds))
+
+    if final_eval:
+        return {"Avg. Accuracy": avg_acc_folds, "Avg. Edit Distance": avg_edit_folds}.update({"Avg. f1 " + str(ol): avg_f1 for ol, avg_f1 in zip(overlap, avg_f1_list)})
+
+
 
 
 def main():
