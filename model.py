@@ -1,4 +1,4 @@
-# !/usr/bin/python2.7
+#!/usr/bin/python2.7
 
 import sys
 import torch
@@ -30,15 +30,10 @@ class MS_TCN2(nn.Module):
 
     def forward(self, x):
         out = self.PG(x)
-        # print("output size of prediction generator {}".format(out.shape))
         outputs = out.unsqueeze(0)
-        # print("output size after unsqueeze {}".format(outputs.shape))
         for R in self.Rs:
             out = R(F.softmax(out, dim=1))
-            # print("output size after refinement {}".format(out.shape))
             outputs = torch.cat((outputs, out.unsqueeze(0)), dim=0)
-            # print("output size after concat {}".format(outputs.shape))
-        # print()
         return outputs
 
 
@@ -95,12 +90,9 @@ class Refinement(nn.Module):
 
     def forward(self, x):
         out = self.conv_1x1(x)
-        # print("within refinement: after 1d conv {}".format(out.shape))
         for layer in self.layers:
             out = layer(out)
-            # print("within refinement: after layer {}".format(out.shape))
         out = self.conv_out(out)
-        # print("within refinement: after conv_out {}".format(out.shape))
         return out
 
 
@@ -115,22 +107,16 @@ class TradeoffRefinement(nn.Module):
 
     def forward(self, x):
         out = self.conv_1x1(x)
-        # print("within refinement: after 1d conv {}".format(out.shape))
         dilation_output_list = list()
         for layer in self.layers:
             out = layer(out)
             dilation_output_list.append(out)
-            # print("within refinement: after layer {}".format(out.shape))
 
         # concat list into a vector
         dilation_outputs = torch.stack(dilation_output_list)
-        # print("within refinement: stacking {}".format(dilation_outputs.shape))
-        # print("dilation dtype {}".format(dilation_outputs.dtype))
-        # print("weight dtype {}".format(self.w.dtype))
+
         averaged_outputs = self.weighter(dilation_outputs)
-        # print("within refinement: averaged {}".format(averaged_outputs.shape))
         out = self.conv_out(averaged_outputs)
-        # print("within refinement: after conv_out {}".format(out.shape))
         return out
 
 
@@ -158,19 +144,6 @@ class Weighting(nn.Module):
         return torch.einsum("ijkl, i->jkl", x, self.w)
 
 
-# class MS_TCN(nn.Module):
-#     def __init__(self, num_stages, num_layers, num_f_maps, dim, num_classes):
-#         super(MS_TCN, self).__init__()
-#         self.stage1 = SS_TCN(num_layers, num_f_maps, dim, num_classes)
-#         self.stages = nn.ModuleList([copy.deepcopy(SS_TCN(num_layers, num_f_maps, num_classes, num_classes)) for s in range(num_stages-1)])
-#
-#     def forward(self, x, mask):
-#         out = self.stage1(x, mask)
-#         outputs = out.unsqueeze(0)
-#         for s in self.stages:
-#             out = s(F.softmax(out, dim=1) * mask[:, 0:1, :], mask)
-#             outputs = torch.cat((outputs, out.unsqueeze(0)), dim=0)
-#         return outputs
 
 
 class SS_TCN(nn.Module):
@@ -319,38 +292,6 @@ class Trainer:
                                                                         predicted[i].item())]] * sample_rate))
                 f_name = vid.split('/')[-1].split('.')[0]
                 f_ptr = open(results_dir + "/" + weighting_method + f_name, "w")
-                f_ptr.write("### Frame level recognition: ###\n")
-                f_ptr.write(' '.join(recognition))
-                f_ptr.close()
-
-    def final_predict(self, model_dir, results_dir, features_path, vid_list_files, epoch, actions_dict, device, sample_rate,
-                weighting_method=''):
-        self.model.eval()
-        with torch.no_grad():
-            self.model.to(device)
-            self.model.load_state_dict(
-                torch.load(model_dir + "/epoch-" + str(epoch) + "_" + weighting_method + ".model", map_location=torch.device('cpu')))
-            print('#####################')
-            print("Predicting")
-            list_of_vids = vid_list_files
-            for vid in list_of_vids:
-                # print vid
-                features = np.load(features_path + vid)
-                features = features[:, ::sample_rate]
-                input_x = torch.tensor(features, dtype=torch.float)
-                input_x.unsqueeze_(0)
-                input_x = input_x.to(device)
-                predictions = self.model(input_x)
-                _, predicted = torch.max(predictions[-1].data, 1)
-                predicted = predicted.squeeze()
-                recognition = []
-                for i in range(len(predicted)):
-                    recognition = np.concatenate((recognition, [list(actions_dict.keys())[
-                                                                    list(actions_dict.values()).index(
-                                                                        predicted[i].item())]] * sample_rate))
-                f_name = vid.split('/')[-1].split('.')[0]
-                print(results_dir + "/final_predict_" + weighting_method + f_name)
-                f_ptr = open(results_dir + "/final_predict_" + weighting_method + "_" + f_name + ".txt" , "w")
                 f_ptr.write("### Frame level recognition: ###\n")
                 f_ptr.write(' '.join(recognition))
                 f_ptr.close()

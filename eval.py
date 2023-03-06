@@ -119,16 +119,10 @@ def eval(dataset, folds, test_files, weight_type, final_eval=0):
 
         for vid in list_of_videos:
             gt_file = ground_truth_path + vid[:-4] + ".txt"
-
-            # gt_content = read_file(gt_file).split('\n')[0:-1]
             gt_content = convert_file_to_list(gt_file)
             recog_file = recog_path + vid.split('.')[0]
             recog_content = read_file(recog_file).split('\n')[1].split()
 
-            # print(len(gt_content))
-            # print(gt_content[:5])
-            # print(len(recog_content))
-            # print(recog_content[:5])
             for i in range(min(len(gt_content), len(recog_content))):
                 total += 1
                 if gt_content[i] == recog_content[i]:
@@ -225,15 +219,10 @@ def main():
         for vid in list_of_videos:
             gt_file = ground_truth_path + vid[:-4] + ".txt"
 
-            # gt_content = read_file(gt_file).split('\n')[0:-1]
             gt_content = convert_file_to_list(gt_file)
             recog_file = recog_path + vid.split('.')[0]
             recog_content = read_file(recog_file).split('\n')[1].split()
 
-            # print(len(gt_content))
-            # print(gt_content[:5])
-            # print(len(recog_content))
-            # print(recog_content[:5])
             for i in range(min(len(gt_content), len(recog_content))):
                 total += 1
                 if gt_content[i] == recog_content[i]:
@@ -284,5 +273,4 @@ def main():
         ClearMLlogger.report_scalar(title=f"AvgF1@{overlap[s]}", series=f"all_folds",iteration=0, value=avg_f1_folds)
         print('Average F1@%0.2f on folds: %.4f' % (overlap[s], avg_f1_folds))
 
-# if __name__ == '__main__':
-#     main()
+
