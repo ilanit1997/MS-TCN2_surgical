@@ -4,7 +4,7 @@
 import numpy as np
 import argparse
 from batch_gen import convert_file_to_list
-from clearml import Task, Logger
+# from clearml import Task, Logger
 
 
 def read_file(path):

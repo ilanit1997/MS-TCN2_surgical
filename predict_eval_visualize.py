@@ -107,7 +107,7 @@ def plot_segments(predictions, ground_truth, mapping_dict, current_time=0, graph
     gt_df = pd.DataFrame({"Label": gt_labels, "Start": gt_seg_starts, "End": gt_seg_ends})
 
     for label_index in range(len(gt_labels)):
-        ax.plot([gt_df['Start'][label_index], gt_df['End'][label_index]], [0,0], color=colors[gt_df['Label'][label_index]], linewidth = 8)
+        ax.plot([gt_df['Start'][label_index], gt_df['End'][label_index]], [0, 0], color=colors[gt_df['Label'][label_index]], linewidth = 8)
 
     offset = -1
     diff = -1
@@ -225,14 +225,23 @@ sample_rate = 1
 mapping_file = "/datashare/APAS/mapping_gestures.txt"
 gt_path = '/datashare/APAS/transcriptions_gestures/'
 
-mapping_file = 'C:/Users/dovid/PycharmProjects/MS-TCN2_surgical/on_computer/mapping_gestures.txt'
-video_path = 'C:/Users/dovid/PycharmProjects/MS-TCN2_surgical/on_computer/videos'
-gt_path = 'C:/Users/dovid/PycharmProjects/MS-TCN2_surgical/on_computer/ground_truth'
-features_path = 'C:/Users/dovid/PycharmProjects/MS-TCN2_surgical/on_computer/features'
-model_dir = 'C:/Users/dovid/PycharmProjects/MS-TCN2_surgical/on_computer/models'
-results_dir = 'C:/Users/dovid/PycharmProjects/MS-TCN2_surgical/on_computer/predictions'
-output_video_path = 'C:/Users/dovid/PycharmProjects/MS-TCN2_surgical/on_computer/output_video'
-graph_path = 'C:/Users/dovid/PycharmProjects/MS-TCN2_surgical/on_computer/temp/output.jpg'
+# mapping_file = 'C:/Users/dovid/PycharmProjects/MS-TCN2_surgical/on_computer/mapping_gestures.txt'
+# video_path = 'C:/Users/dovid/PycharmProjects/MS-TCN2_surgical/on_computer/videos'
+# gt_path = 'C:/Users/dovid/PycharmProjects/MS-TCN2_surgical/on_computer/ground_truth'
+# features_path = 'C:/Users/dovid/PycharmProjects/MS-TCN2_surgical/on_computer/features'
+# model_dir = 'C:/Users/dovid/PycharmProjects/MS-TCN2_surgical/on_computer/models'
+# results_dir = 'C:/Users/dovid/PycharmProjects/MS-TCN2_surgical/on_computer/predictions'
+# output_video_path = 'C:/Users/dovid/PycharmProjects/MS-TCN2_surgical/on_computer/output_video'
+# graph_path = 'C:/Users/dovid/PycharmProjects/MS-TCN2_surgical/on_computer/temp/output.jpg'
+
+mapping_file = 'on_computer/mapping_gestures.txt'
+video_path = 'on_computer/videos'
+gt_path = 'on_computer/ground_truth'
+features_path = 'on_computer/features'
+model_dir = 'on_computer/models'
+results_dir = 'on_computer/predictions'
+output_video_path = 'on_computer/output_video'
+graph_path = 'on_computer/temp/output.jpg'
 
 if not os.path.exists(results_dir):
     os.makedirs(results_dir)
@@ -260,8 +269,7 @@ if create_videos:
         os.makedirs(output_video_path)
     for video in videos:
         img_array = []
-        for timestep, filename in enumerate(
-                glob.glob(f'{video_path}/{video}_side/*.jpg')):
+        for timestep, filename in enumerate(glob.glob(f'{video_path}/{video}_side/*.jpg')):
             # create graph for time step
             create_video_graph(video, gt_path, results_dir, graph_path, weight_types, timestep=timestep,
                                mapping_dict=actions_dict)
@@ -271,16 +279,18 @@ if create_videos:
 
             graph = cv2.imread(graph_path)
             graph = cv2.resize(graph, (width, graph.shape[0]))
+
+            legend = cv2.resize(cv2.imread('on_computer/temp/legend.jpg'), (width/5, graph.shape[0]))
+
+            graph = cv2.resize(cv2.hconcat([graph, legend]), (width, graph.shape[0]))
+
             im_with_plt = cv2.resize(cv2.vconcat([img, graph]), (width, height))
             img_array.append(im_with_plt)
-            if timestep == 1000:
+            if timestep == 100:
                 break
-
-        out = cv2.VideoWriter(f'{output_video_path}/{video}.avi', cv2.VideoWriter_fourcc(*'DIVX'), 15, size)
+        print(f'{output_video_path}/{video}.avi')
+        out = cv2.VideoWriter(f'{output_video_path}/{video}.avi', cv2.VideoWriter_fourcc(*'DIVX'), 10, size)
 
         for i in range(len(img_array)):
             out.write(img_array[i])
         out.release()
-
-        # Closes all the frames
-        cv2.destroyAllWindows()
