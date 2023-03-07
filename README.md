@@ -16,6 +16,20 @@ Python3, pytorch
 * Adding logs to ClearML
 * train-test-val split is unique to our dataset 
 
+## Analysis plots:
+### Tradeoff results
+
+<img src="https://github.com/ilanit1997/MS-TCN2_surgical/blob/master/plots/tradeoff%20main%20results.jpeg" width="400" height="300">
+
+### Initial VS Learned weights
+
+<img src="https://github.com/ilanit1997/MS-TCN2_surgical/blob/master/plots/initial%20weights%20all.jpeg" width="400" height="200">
+<img src="https://github.com/ilanit1997/MS-TCN2_surgical/blob/master/plots/learned%20weights%20all.jpeg" width="400" height="200">
+
+### Initial VS Learned weights
+<img src="https://github.com/ilanit1997/MS-TCN2_surgical/blob/master/plots/initial%20vs%20learned%20global.jpeg" width="400" height="200">
+<img src="https://github.com/ilanit1997/MS-TCN2_surgical/blob/master/plots/initial%20vs%20learned%20local.jpeg" width="400" height="200">
+<img src="https://github.com/ilanit1997/MS-TCN2_surgical/blob/master/plots/initial%20vs%20learned%20uniform.jpeg" width="400" height="200">
 
 ## Cite:
 ```BibTeX
