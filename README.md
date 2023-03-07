@@ -16,10 +16,6 @@ Python3, pytorch
 * Adding logs to ClearML
 * train-test-val split is unique to our dataset 
 
-## Sample videos:
-
-<video src="https://github.com/ilanit1997/MS-TCN2_surgical/blob/master/videos/P019_balloon1.mp4" controls="controls" style="max-width: 730px;">
-</video>
 
 ## Analysis plots:
 ### Tradeoff results
