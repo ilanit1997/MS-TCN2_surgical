@@ -18,6 +18,8 @@ Python3, pytorch
 
 ## Sample videos:
 
+<video src="https://github.com/ilanit1997/MS-TCN2_surgical/blob/master/videos/P019_balloon1.mp4" controls="controls" style="max-width: 730px;">
+</video>
 
 ## Analysis plots:
 ### Tradeoff results
