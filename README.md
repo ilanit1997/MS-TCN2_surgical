@@ -16,10 +16,12 @@ Python3, pytorch
 * Adding logs to ClearML
 * train-test-val split is unique to our dataset 
 
+## Sample videos:
+
+
 ## Analysis plots:
 ### Tradeoff results
 
-<img src="https://github.com/ilanit1997/MS-TCN2_surgical/blob/master/plots/tradeoff%20main%20results.jpeg" width="400" height="300">
 
 ### Initial VS Learned weights
 
